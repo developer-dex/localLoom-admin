@@ -1,0 +1,405 @@
+# Implementation Plan: Admin Panel UI
+
+## Overview
+
+Convert the feature design into a series of prompts for a code-generation LLM that will implement each step with incremental progress. Make sure that each prompt builds on the previous prompts, and ends with wiring things together. There should be no hanging or orphaned code that isn't integrated into a previous step. Focus ONLY on tasks that involve writing, modifying, or testing code.
+
+The admin panel is a greenfield Vite + React + TypeScript SPA. Implementation flows outward from scaffolding → theme tokens → shadcn primitives → env + api layer → auth + providers → routing → layout → feature modules → steering rules → tests. Testing is example-based (Vitest + Testing Library + MSW); per the design document, property-based tests are not applicable for this feature. All test sub-tasks are marked optional with `*`.
+
+## Tasks
+
+- [x] 1. Project scaffolding and tooling
+  - [x] 1.1 Bootstrap Vite project with React + TypeScript
+    - Run `npm create vite@latest localloom-admin -- --template react-ts` (or equivalent manual scaffold at the workspace root) so `package.json`, `index.html`, `src/main.tsx`, `src/App.tsx`, `tsconfig.json`, `tsconfig.node.json`, and `vite.config.ts` exist
+    - Configure path alias `@/*` → `src/*` in both `tsconfig.json` (`compilerOptions.paths`) and `vite.config.ts` (`resolve.alias`)
+    - Add `@types/node` as a dev dependency so `vite.config.ts` can use `path`
+    - _Requirements: 1.1, 1.8_
+  - [x] 1.2 Install runtime dependencies
+    - Add `react-router-dom@^6`, `axios@^1`, `@tanstack/react-query@^5`, `react-hook-form`, `zod`, `@hookform/resolvers`
+    - Add `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`
+    - _Requirements: 1.2, 1.4, 1.5, 1.6, 1.7_
+  - [x] 1.3 Install and configure Tailwind CSS + PostCSS
+    - Add `tailwindcss`, `postcss`, `autoprefixer` as dev deps
+    - Create `postcss.config.js` with `tailwindcss` and `autoprefixer` plugins
+    - Create `tailwind.config.ts` with `content: ["./index.html", "./src/**/*.{ts,tsx}"]` and `darkMode: "class"`
+    - Create `src/styles/globals.css` containing `@tailwind base; @tailwind components; @tailwind utilities;` plus shadcn layer placeholders
+    - _Requirements: 1.4, 3.3_
+  - [x] 1.4 Configure ESLint and Prettier
+    - Add `eslint`, `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `prettier`, `eslint-config-prettier`
+    - Create `eslint.config.js` (or `.eslintrc.cjs`) with recommended TS + React Hooks rules and a `no-restricted-syntax` rule banning `import.meta.env` member access outside `src/config/env.ts`
+    - Create `.prettierrc` with project conventions
+    - _Requirements: 1.10, 14.3_
+  - [x] 1.5 Wire npm scripts
+    - Add `dev`, `build` (= `tsc -b && vite build`), `preview`, `lint`, `typecheck` (= `tsc --noEmit`), `format`, `test` (= `vitest --run`), `test:watch` scripts to `package.json`
+    - _Requirements: 1.10, 14.4_
+  - [x] 1.6 Create `.env.example` and `.gitignore`
+    - `.env.example` with `VITE_API_BASE_URL=http://localhost:5000` and `VITE_APP_NAME=LocalLoom Admin`
+    - `.gitignore` excluding `node_modules`, `dist`, `.env`, `.env.local`, editor folders
+    - _Requirements: 1.11, 1.12_
+  - [ ]* 1.7 Verify scaffolding scripts
+    - Run `npm install`, `npm run lint`, `npm run typecheck`, `npm run build` and confirm all exit 0 on the empty scaffold
+    - _Requirements: 1.10_
+
+- [x] 2. Design tokens and Tailwind wiring
+  - [x] 2.1 Author `src/styles/tokens.css`
+    - Define `:root` and `.dark` blocks with every token consumed by shadcn (`background`, `foreground`, `card`, `card-foreground`, `popover`, `popover-foreground`, `primary`, `primary-foreground`, `secondary`, `secondary-foreground`, `muted`, `muted-foreground`, `accent`, `accent-foreground`, `destructive`, `destructive-foreground`, `border`, `input`, `ring`, `radius`) using HSL triplet format
+    - _Requirements: 3.1, 3.2_
+  - [x] 2.2 Map tokens in `tailwind.config.ts`
+    - Extend `theme.colors` with `primary`, `secondary`, `destructive`, `muted`, `accent`, `card`, `popover`, `border`, `input`, `ring`, `background`, `foreground` each as `hsl(var(--token))`, including `-foreground` variants
+    - Add `borderRadius.lg/md/sm` referencing `var(--radius)`
+    - _Requirements: 3.3_
+  - [x] 2.3 Import tokens first from `src/main.tsx`
+    - Ensure `import "@/styles/tokens.css"` precedes `import "@/styles/globals.css"` and any component stylesheet
+    - _Requirements: 3.4_
+
+- [x] 3. shadcn/ui initialization and primitive install list
+  - [x] 3.1 Initialize shadcn CLI
+    - Create `components.json` at repo root with `style: "new-york"`, `baseColor: "slate"`, `cssVariables: true`, `tailwind.config: "tailwind.config.ts"`, and aliases `components: "@/components"`, `utils: "@/lib/utils"`, `ui: "@/components/ui"`, `hooks: "@/hooks"`
+    - Create `src/lib/utils.ts` exporting `cn` via `clsx` + `tailwind-merge`
+    - _Requirements: 1.9, 2.7_
+  - [x] 3.2 Install shadcn primitives into `src/components/ui/`
+    - Install via `npx shadcn@latest add <name>` for: `button`, `input`, `label`, `card`, `table`, `dialog`, `sheet`, `dropdown-menu`, `select`, `toast`, `toaster`, `form`, `tabs`, `badge`, `avatar`, `separator`, `skeleton`, `tooltip`, `pagination`, `alert`, `alert-dialog`, `switch`, `textarea`
+    - Do not hand-edit any file under `src/components/ui/`
+    - _Requirements: 2.1, 2.2, 2.4_
+  - [x] 3.3 Re-export shadcn `use-toast` hook
+    - Create `src/hooks/use-toast.ts` re-exporting from `@/components/ui/use-toast`
+    - _Requirements: 4.11, 6.6_
+
+- [x] 4. Environment config module
+  - [x] 4.1 Implement `src/config/env.ts`
+    - Define zod `EnvSchema` with `VITE_API_BASE_URL` (non-empty, must start with `http://` or `https://`) and `VITE_APP_NAME` (default `"LocalLoom Admin"`)
+    - Parse `import.meta.env`, throw a descriptive `Error` listing each failing path and message on failure
+    - Export `const env = { apiBaseUrl, appName } as const` with trailing slash trimmed from `apiBaseUrl`
+    - _Requirements: 14.1, 14.2, 14.3_
+  - [ ]* 4.2 Write unit tests for env module
+    - Valid values parse; empty `VITE_API_BASE_URL` throws; missing scheme throws; default `VITE_APP_NAME` applies
+    - _Requirements: 14.1, 14.2_
+
+- [x] 5. Shared domain types
+  - [x] 5.1 Create `src/types/api.ts`
+    - Export `ApiEnvelope<T>`, `Paginated<T>` interfaces matching the backend envelope `{ success, message, data, errors? }`
+    - _Requirements: 4.5, 12.3_
+  - [x] 5.2 Create `src/types/admin.ts`
+    - Export `AdminRole`, `AdminStatus`, and `Admin` interface (`id`, `name`, `email`, `avatar`, `role`, `status`, `lastLogin`, `createdAt`)
+    - _Requirements: 5.3, 7.1, 12.3_
+
+- [x] 6. API layer: paths, errors, client
+  - [x] 6.1 Implement `src/api/paths.ts`
+    - Export `ADMIN_PATHS` with `auth` (`login`, `refreshToken`, `logout`, `profile`, `changePassword`), `categories` (`root`, `byId(id)`), `regions` (`root`, `byId(id)`), plus reserved `users`, `tradies`, `reviews`, `reports`, `dashboard`, `suburbs` groups
+    - Mark object `as const`
+    - _Requirements: 4.6, 4.7, 10.1, 10.4_
+  - [ ]* 6.2 Write unit tests for `ADMIN_PATHS`
+    - Assert `byId(id)` returns the correct string for categories and regions
+    - _Requirements: 4.6_
+  - [x] 6.3 Implement `src/api/errors.ts`
+    - Define `ApiError` class with `status`, `message`, `errors: string[]`, `fieldErrors: Record<string, string>`
+    - Implement `normalizeAxiosError(err)` per the five cases in design §ErrorHandling.1 (no response, envelope with `string[]` errors, envelope with `{field?, message}[]` errors, non-envelope JSON, no JSON body)
+    - _Requirements: 4.5_
+  - [ ]* 6.4 Write unit tests for `normalizeAxiosError`
+    - Cover: network error (status 0), string[] errors, field-scoped errors populating `fieldErrors`, plain-text response, and a well-formed envelope with `message` only
+    - _Requirements: 4.5_
+  - [x] 6.5 Implement auth event bus in `src/api/client.ts`
+    - Module-scoped `Set<(e: "forced-logout") => void>` with `onAuthEvent(fn)` subscriber returning an unsubscribe, and internal `emitForcedLogout()`
+    - _Requirements: 4.4, 11.5_
+  - [x] 6.6 Implement `Api_Client` axios instance in `src/api/client.ts`
+    - Create instance with `baseURL = \`${env.apiBaseUrl}/api/admin\`` and default `Accept: application/json`
+    - Request interceptor attaches `Authorization: Bearer <accessToken>` from `authStorage` when present (note: `auth.storage.ts` will be created in task 7.1; this task depends on 7.1)
+    - Response interceptor performs one-shot refresh-on-401 using a shared `refreshPromise` and a per-request `_retried` flag; skips the flow for `/auth/login` and `/auth/refresh-token`; on refresh failure clears storage and emits `forced-logout`
+    - Rejects every error as a normalized `ApiError`
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
+
+- [x] 7. Auth storage and Auth_Provider
+  - [x] 7.1 Implement `src/features/auth/auth.storage.ts`
+    - Keys: `localloom-admin-access-token`, `localloom-admin-refresh-token`, `localloom-admin-profile`
+    - Methods: `getAccessToken`, `getRefreshToken`, `getProfile` (JSON parse guarded), `setTokens`, `setProfile`, `clear`
+    - _Requirements: 5.3_
+  - [ ]* 7.2 Write unit tests for `auth.storage`
+    - Round-trip setTokens/getAccessToken/getRefreshToken; setProfile/getProfile; clear removes all three keys
+    - _Requirements: 5.3_
+  - [x] 7.3 Define auth types in `src/features/auth/auth.types.ts`
+    - `LoginTokens { accessToken, refreshToken }` and `LoginResponseData { admin, tokens }`
+    - _Requirements: 5.2, 5.3_
+  - [x] 7.4 Implement `AdminAuthRepository` in `src/features/auth/auth.repository.ts`
+    - Methods: `login({ email, password })`, `profile()`, `logout()`, `changePassword({ currentPassword, newPassword })` — all routed through `apiClient` and `ADMIN_PATHS.auth.*`
+    - Export singleton `adminAuthRepository`
+    - _Requirements: 4.8, 5.2, 5.6, 5.7, 5.11_
+  - [x] 7.5 Implement `Auth_Provider` in `src/providers/auth-provider.tsx`
+    - React context exposing `status: "idle" | "hydrating" | "authenticated" | "unauthenticated"`, `admin`, `login`, `logout`
+    - Initial status: `hydrating` if access token present else `unauthenticated`
+    - `useEffect` on `hydrating` calls `adminAuthRepository.profile()`; on success writes profile, sets `authenticated`; on 401 clears storage and sets `unauthenticated`
+    - `useEffect` subscribes to `onAuthEvent("forced-logout")` and transitions to `unauthenticated`
+    - `login` calls repository, persists tokens+profile, sets `authenticated`
+    - `logout` calls repository (best effort), clears storage, sets `unauthenticated`
+    - Export `useAuth()` hook that throws when used outside provider
+    - _Requirements: 4.4, 5.3, 5.6, 5.7, 11.5_
+
+- [x] 8. Theme_Provider and theme toggle wrapper
+  - [x] 8.1 Implement `src/providers/theme-provider.tsx`
+    - Theme union `"light" | "dark" | "system"`, storage key `localloom-admin-theme`
+    - Context value `{ theme, resolved, setTheme }`; resolve `"system"` via `matchMedia("(prefers-color-scheme: dark)")`
+    - Effect toggles `document.documentElement.classList` and persists the preference
+    - Effect listens to media query changes only when theme is `"system"`
+    - Export `useTheme()` hook that throws outside provider
+    - _Requirements: 3.5_
+  - [x] 8.2 Implement theme toggle wrapper in `src/components/layout/theme-toggle.tsx`
+    - `DropdownMenu` with Light / Dark / System items that call `setTheme`
+    - Use token classes (`bg-accent` etc.) only; no hex literals
+    - _Requirements: 3.6, 3.7, 6.3_
+
+- [x] 9. Query_Provider
+  - [x] 9.1 Implement `src/providers/query-provider.tsx`
+    - Create `QueryClient` with sensible defaults (retry: 1, refetchOnWindowFocus: false)
+    - Export `QueryProvider` wrapping children in `QueryClientProvider`
+    - _Requirements: 1.6, 12.4_
+  - [x] 9.2 Create centralized query keys in `src/lib/query-keys.ts`
+    - Export `queryKeys` with `auth.profile()`, `categories.all()`, `regions.all()` returning readonly tuples
+    - _Requirements: 4.9, 4.10_
+
+- [x] 10. Router and ProtectedRoute
+  - [x] 10.1 Implement `src/router/protected-route.tsx`
+    - Read `useAuth()` status and `useLocation()`
+    - `idle`/`hydrating` → render full-page `Skeleton`
+    - Not `authenticated` → `<Navigate to="/login?redirectTo=<encoded current path+search>" replace />`
+    - Else render `<Outlet />`
+    - _Requirements: 5.9, 11.2, 11.3_
+  - [x] 10.2 Implement `src/router/index.tsx` (`AppRouter`)
+    - `/login` element: redirect to `/dashboard` if authenticated else `<LoginPage />`
+    - Guarded route group wraps `<ProtectedRoute />` around `<AppLayout />` with nested routes: `index` → `Navigate /dashboard`, `/dashboard`, `/categories`, `/regions`, `/change-password`
+    - Conditionally mount `/users`, `/tradies`, `/reviews`, `/reports` routes from `features.*` flags
+    - `*` → `<NotFoundPage />` still inside the guarded group
+    - Lazy-load every page except `LoginPage` with `React.lazy` + `<Suspense fallback={<PageSkeleton />}>`
+    - _Requirements: 5.8, 5.10, 10.3, 11.1, 11.2, 11.6_
+  - [ ]* 10.3 Write unit tests for `ProtectedRoute`
+    - `hydrating` renders skeleton; `unauthenticated` navigates with URL-encoded `redirectTo`; `authenticated` renders `<Outlet />`
+    - _Requirements: 5.9, 11.3_
+
+- [x] 11. Feature flags module and placeholder page wiring
+  - [x] 11.1 Create `src/config/features.ts`
+    - Export `features` object with `users: false`, `tradies: false`, `reviews: false`, `reports: false` as `const`
+    - Export `FeatureKey` type
+    - _Requirements: 10.2_
+  - [x] 11.2 Create minimal placeholder pages for reserved modules
+    - `src/features/users/pages/users-page.tsx`, `tradies/pages/tradies-page.tsx`, `reviews/pages/reviews-page.tsx`, `reports/pages/reports-page.tsx` rendering a "Coming soon" card using shadcn `Card`
+    - Each module has an `index.ts` re-exporting the page only (no repository yet)
+    - Router conditionally mounts these per `features.*` (already handled in 10.2)
+    - _Requirements: 10.1, 10.3, 10.4_
+
+- [x] 12. App layout: sidebar, topbar, user menu, responsive sheet, Toaster
+  - [x] 12.1 Implement `src/components/layout/app-sidebar.tsx`
+    - Consume a `navItems` registry combining fixed entries (Dashboard, Categories, Regions) with feature-flag-gated entries (Users, Tradies, Reviews, Reports)
+    - Filter by `enabled` property; render each as a `NavLink` with a `lucide-react` icon and label
+    - Apply `bg-accent text-accent-foreground` to the active link via `NavLink`'s `className` callback
+    - _Requirements: 6.2, 6.5, 10.3_
+  - [x] 12.2 Implement `src/components/layout/app-topbar.tsx`
+    - Render `env.appName` on the left, theme toggle and user menu on the right
+    - Include a mobile menu button (hidden on `md:` and up) that toggles the sidebar `Sheet`
+    - _Requirements: 6.3, 6.4_
+  - [x] 12.3 Implement `src/components/layout/user-menu.tsx`
+    - `DropdownMenu` triggered by `Avatar` + admin name
+    - Entries: "Change password" (navigates to `/change-password`), "Logout" (calls `useAuth().logout()` and navigates to `/login`)
+    - _Requirements: 5.7, 6.3, 5.11_
+  - [x] 12.4 Implement `src/components/layout/app-layout.tsx`
+    - Persistent `<aside>` sidebar on `md:` and up with `bg-card border-r border-border`
+    - Below 768px, render `Sheet` instead, controlled by topbar button
+    - Main content area renders `<Outlet />`
+    - Mount shadcn `<Toaster />` once at layout root
+    - _Requirements: 6.1, 6.4, 6.6_
+  - [x] 12.5 Implement `src/components/wrappers/page-header.tsx`
+    - Props: `title`, `description?`, `actions?`, plus `HTMLAttributes<HTMLDivElement>`
+    - Use `cn` from `@/lib/utils` and shadcn `Separator`
+    - _Requirements: 2.3, 2.5, 2.7_
+  - [x] 12.6 Implement `src/components/wrappers/form-field.tsx`
+    - Compose shadcn `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormMessage` behind a single-prop API; do not modify files in `src/components/ui/`
+    - _Requirements: 2.3, 2.4, 2.5_
+  - [x] 12.7 Implement `src/components/wrappers/data-table.tsx`
+    - Thin wrapper around shadcn `Table` accepting `columns` and `data` props for consistent styling; no edits to `src/components/ui/table.tsx`
+    - _Requirements: 2.3, 2.5_
+  - [ ]* 12.8 Write component tests for `AppLayout` / `AppSidebar`
+    - Hidden module entries do not render when `features.users === false`; active route gets `bg-accent`; Sheet opens on mobile
+    - _Requirements: 6.2, 6.4, 6.5, 10.3_
+
+- [x] 13. Shared API error toast helper
+  - [x] 13.1 Implement `src/hooks/use-api-error-toast.ts`
+    - Export `useApiErrorToast()` that returns a function mapping `ApiError` to a shadcn toast with `title = err.message`, `description = err.errors[0]` when present, `variant: "destructive"` when `status >= 400 || status === 0`
+    - _Requirements: 4.11_
+
+- [x] 14. Feature module: auth (pages and hooks)
+  - [x] 14.1 Implement `src/features/auth/hooks/use-login-mutation.ts`
+    - Wrap `adminAuthRepository.login` in `useMutation`
+    - _Requirements: 4.9, 5.2_
+  - [x] 14.2 Implement `src/features/auth/hooks/use-profile-query.ts`
+    - Wrap `adminAuthRepository.profile` in `useQuery` keyed by `queryKeys.auth.profile()`
+    - _Requirements: 4.9, 5.6, 7.1_
+  - [x] 14.3 Implement `src/features/auth/hooks/use-logout-mutation.ts`
+    - Wrap `adminAuthRepository.logout` in `useMutation`
+    - _Requirements: 4.9, 5.7_
+  - [x] 14.4 Implement `src/features/auth/hooks/use-change-password-mutation.ts`
+    - Wrap `adminAuthRepository.changePassword` in `useMutation`; on success show a toast and return the result
+    - _Requirements: 4.9, 5.11_
+  - [x] 14.5 Implement `src/features/auth/pages/login-page.tsx`
+    - Form with zod schema (`email: z.string().email()`, `password: z.string().min(1)`) and `react-hook-form` resolver
+    - Submit calls `useAuth().login`; on `ApiError(401|403)` show destructive toast and stay on page; otherwise route through `useApiErrorToast`
+    - On success read `redirectTo` from search params; navigate only if it starts with `/` and does not contain `://`, else `/dashboard`
+    - Render its own local `<Toaster />` at the page root (it lives outside `AppLayout`)
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 11.4_
+  - [x] 14.6 Implement `src/features/auth/pages/change-password-page.tsx`
+    - Form with `currentPassword`, `newPassword` (min length matching backend), zod validation
+    - Submit calls `useChangePasswordMutation`; on success show toast and `form.reset()`
+    - _Requirements: 5.11_
+  - [x] 14.7 Add `src/features/auth/index.ts`
+    - Re-export pages, hooks, repository, storage, and types
+    - _Requirements: 12.2_
+  - [ ]* 14.8 Write component tests for `LoginPage`
+    - Valid submit navigates; MSW 401 shows toast and stays on `/login`; `redirectTo=https://evil.tld/x` falls back to `/dashboard`; valid relative `redirectTo` is honored
+    - _Requirements: 5.2, 5.4, 11.4_
+
+- [x] 15. Feature module: dashboard
+  - [x] 15.1 Implement `src/features/dashboard/hooks/use-dashboard-counts.ts`
+    - Compose `useCategoriesQuery()` and `useRegionsQuery()` (created in later tasks); derive counts from `.length`
+    - _Requirements: 4.9, 7.2_
+  - [x] 15.2 Implement `src/features/dashboard/pages/dashboard-page.tsx`
+    - Show admin name, role, and last-login timestamp from `useAuth().admin`
+    - Render two `Card`s with Categories and Regions counts, using `Skeleton` while loading
+    - _Requirements: 7.1, 7.2, 7.3, 7.4_
+  - [x] 15.3 Add `src/features/dashboard/index.ts`
+    - Re-export page and hook
+    - _Requirements: 12.2_
+
+- [x] 16. Feature module: categories
+  - [x] 16.1 Define `src/features/categories/categories.types.ts`
+    - Export `Category`, `CreateCategoryInput`, `UpdateCategoryInput` interfaces
+    - Export `buildCategoryFormData(input)` helper that converts the input object to `FormData`, omitting undefined fields and only appending `icon` when it is a `File`
+    - _Requirements: 4.12, 8.3, 8.5_
+  - [x] 16.2 Define `src/features/categories/categories.schema.ts`
+    - Zod `categoryFormSchema` with `name` (trim, min 1, max 100), `description` (trim, max 500, optional or empty string), `sortOrder` (coerce number, int, min 0, optional), `icon` (`z.instanceof(File).optional()`)
+    - Export `CategoryFormValues` inferred type
+    - _Requirements: 8.3_
+  - [ ]* 16.3 Write unit tests for `categoryFormSchema`
+    - Passing: minimal `{ name }`; full object; invalid: empty name, over-length name, negative sortOrder
+    - _Requirements: 8.3_
+  - [x] 16.4 Implement `AdminCategoriesRepository` in `src/features/categories/categories.repository.ts`
+    - `list()` normalizes both `Category[]` and `{ items, pagination }` envelopes
+    - `create(input)` and `update(id, input)` post/patch `FormData` with `Content-Type: multipart/form-data`
+    - `softDelete(id)` deletes via `ADMIN_PATHS.categories.byId(id)`
+    - Export singleton `adminCategoriesRepository`
+    - _Requirements: 4.8, 4.12, 8.4, 8.5, 8.6_
+  - [x] 16.5 Implement categories query and mutation hooks
+    - `use-categories-query.ts`, `use-create-category-mutation.ts`, `use-update-category-mutation.ts`, `use-delete-category-mutation.ts`
+    - Mutations invalidate `queryKeys.categories.all()` on success and toast on error via `useApiErrorToast`
+    - _Requirements: 4.9, 4.10, 4.11_
+  - [x] 16.6 Implement `src/features/categories/components/category-dialog.tsx`
+    - Shadcn `Dialog` + `Form` + `react-hook-form` with `categoryFormSchema` resolver
+    - Supports `mode="create" | "edit"`; when editing, pre-fill form and avoid sending `icon` if untouched
+    - On `ApiError`: map `fieldErrors` into `form.setError`; on 409 without mapped field, set error under `name`; remaining non-field errors surface via toast
+    - On success, reset form and close dialog
+    - _Requirements: 8.3, 8.4, 8.5, 8.7, 8.8_
+  - [x] 16.7 Implement `src/features/categories/components/category-delete-dialog.tsx`
+    - Shadcn `AlertDialog` with confirm/cancel; on confirm calls `useDeleteCategoryMutation`
+    - _Requirements: 8.6_
+  - [x] 16.8 Implement `src/features/categories/pages/categories-page.tsx`
+    - Use `useCategoriesQuery()`; render `PageHeader` with "New category" button and `DataTable` wrapper
+    - Columns: Name, Icon (`Avatar`), Sort Order, Active (`Badge`), Created At, Actions (Edit/Delete)
+    - Client-side name filter via shadcn `Input` above the table
+    - Wire Edit → `CategoryDialog` with preset values; Delete → `CategoryDeleteDialog`
+    - _Requirements: 8.1, 8.2_
+  - [x] 16.9 Add `src/features/categories/index.ts`
+    - Re-export page, hooks, repository, schema, types
+    - _Requirements: 12.2_
+  - [ ]* 16.10 Write component tests for `CategoriesPage`
+    - List renders; search filters rows; New opens dialog and submits multipart; MSW 409 surfaces error under `name`; Delete opens AlertDialog and deletes on confirm
+    - _Requirements: 8.1, 8.2, 8.4, 8.6, 8.8_
+
+- [x] 17. Feature module: regions
+  - [x] 17.1 Define `src/features/regions/regions.types.ts`
+    - Export `Region`, `CreateRegionInput`, `UpdateRegionInput` interfaces
+    - _Requirements: 9.2_
+  - [x] 17.2 Define `src/features/regions/regions.schema.ts`
+    - Zod `regionFormSchema` with `name` (trim, min 1, max 100), `isActive` (boolean, default true)
+    - _Requirements: 9.2_
+  - [ ]* 17.3 Write unit tests for `regionFormSchema`
+    - Passing and failing examples
+    - _Requirements: 9.2_
+  - [x] 17.4 Implement `AdminRegionsRepository` in `src/features/regions/regions.repository.ts`
+    - `list()`, `create(input)` POST JSON, `update(id, input)` PATCH JSON, `softDelete(id)` DELETE
+    - Export singleton `adminRegionsRepository`
+    - _Requirements: 4.8, 9.3, 9.4, 9.5_
+  - [x] 17.5 Implement regions query and mutation hooks
+    - `use-regions-query.ts`, `use-create-region-mutation.ts`, `use-update-region-mutation.ts`, `use-delete-region-mutation.ts`
+    - Mutations invalidate `queryKeys.regions.all()` and toast on error
+    - _Requirements: 4.9, 4.10, 4.11_
+  - [x] 17.6 Implement `src/features/regions/components/region-dialog.tsx`
+    - Shadcn `Dialog` + `Form` with `regionFormSchema`
+    - Supports `mode="create" | "edit"`; field error mapping from `ApiError.fieldErrors`; 409 maps to `name` field
+    - _Requirements: 9.2, 9.3, 9.4_
+  - [x] 17.7 Implement `src/features/regions/components/region-delete-dialog.tsx`
+    - Shadcn `AlertDialog` with confirm/cancel; on confirm calls `useDeleteRegionMutation`
+    - _Requirements: 9.5_
+  - [x] 17.8 Implement `src/features/regions/pages/regions-page.tsx`
+    - Use `useRegionsQuery()`; columns: Name, Active, Created At, Actions
+    - Wire New/Edit/Delete dialogs
+    - _Requirements: 9.1_
+  - [x] 17.9 Add `src/features/regions/index.ts`
+    - Re-export page, hooks, repository, schema, types
+    - _Requirements: 12.2_
+  - [ ]* 17.10 Write component tests for `RegionsPage`
+    - List renders; New submits JSON; Delete confirms and deletes
+    - _Requirements: 9.1, 9.3, 9.5_
+
+- [x] 18. Providers composition in `App.tsx` and `main.tsx`
+  - [x] 18.1 Finalize `src/App.tsx`
+    - Compose only: `QueryProvider` > `ThemeProvider` > `BrowserRouter` > `AuthProvider` > `AppRouter`
+    - No feature logic, no business code in `App.tsx`
+    - _Requirements: 12.5_
+  - [x] 18.2 Finalize `src/main.tsx`
+    - Import order: `@/styles/tokens.css` first, then `@/styles/globals.css`, then render `<App />` in `StrictMode`
+    - _Requirements: 3.4, 12.4_
+
+- [x] 19. Checkpoint - core wiring complete
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 20. Steering rules file
+  - [x] 20.1 Author `localloom-admin/.kiro/steering/admin-panel-rules.md`
+    - Sections: (1) Scope and intent, (2) shadcn/ui rules, (3) API integration rules, (4) Theming rules, (5) Routing rules, (6) Project structure rules, (7) Environment rules, (8) Definition of Done checklist, (9) References
+    - Shadcn rules cover: CLI-only installation, no edits to `src/components/ui/*`, wrappers go in `src/components/wrappers/`, use `cn` for class composition, mount a single `<Toaster />` at layout level, wrap forms with shadcn `Form` + react-hook-form
+    - API rules: every path in `ADMIN_PATHS`, every call through Repository + React Query, `Api_Client` is singleton
+    - Theming rules: no hex or named color literals in `src/features/**`
+    - Routing rules: `/login` is the only public route; every non-login route wrapped by `ProtectedRoute`
+    - Structure rules: list top-level `src/` folders and required files per Feature_Module
+    - Environment rules: `import.meta.env` is read only in `src/config/env.ts`
+    - DoD checklist: `npm run lint`, `npm run typecheck`, `npm run build` pass; no new files in `src/components/ui/`; no raw path strings outside `src/api/paths.ts`; no hex literals in feature code; every new route is `/login` or under Protected_Route
+    - References: cite URLs for shadcn installation (`/docs/installation/vite`), CLI (`/docs/cli`), theming (`/docs/theming`), form + RHF (`/docs/components/form`), toast (`/docs/components/toast`), cn utility (`/docs/installation/manual`)
+    - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 14.3_
+
+- [x] 21. Test infrastructure and refresh-on-401 integration test
+  - [x] 21.1 Set up Vitest + Testing Library + MSW
+    - Add `vitest`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`, `msw`, `jsdom` as dev deps
+    - Create `vitest.config.ts` (or extend `vite.config.ts` with `test` block) with `environment: "jsdom"` and a setup file
+    - Create `src/test/setup.ts` importing `@testing-library/jest-dom` and starting MSW server with `beforeAll`/`afterEach`/`afterAll` hooks
+    - Create `src/test/handlers.ts` with default MSW handlers for `POST /api/admin/auth/login`, `POST /auth/refresh-token`, `GET /auth/profile`, `GET /categories`, `GET /regions`
+    - _Requirements: 1.10_
+  - [ ]* 21.2 Write component tests for `ThemeProvider`
+    - Default is `system`; `matchMedia` change flips `document.documentElement.classList` when theme is `"system"`; selecting `"dark"` persists to localStorage and adds `dark` class
+    - _Requirements: 3.5_
+  - [ ]* 21.3 Write integration test for refresh-on-401 happy path
+    - Seed `authStorage` with expired access token; MSW `GET /categories` returns 401 once then 200; `POST /auth/refresh-token` returns new tokens; assert component renders the list and only one refresh is issued when two queries 401 concurrently (shared `refreshPromise`)
+    - _Requirements: 4.3, 4.4_
+  - [ ]* 21.4 Write integration test for refresh failure
+    - MSW `POST /auth/refresh-token` returns 401; assert `authStorage.getAccessToken()` is null afterward, `forced-logout` event fires, and `ProtectedRoute` navigates to `/login?redirectTo=<path>`
+    - _Requirements: 4.4, 11.3, 11.5_
+  - [ ]* 21.5 Optional Playwright smoke tests
+    - Unauthenticated `/categories` redirects to `/login?redirectTo=%2Fcategories`; sign in with seeded admin creds; create a category with icon upload; delete it and confirm the toast appears
+    - _Requirements: 5.2, 5.3, 8.4, 8.6, 11.3_
+
+- [x] 22. Final checkpoint - ensure all tests pass
+  - Run `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`; confirm CI expectations (each command exits 0)
+  - Confirm `dist/` is a pure static bundle (no Node runtime required)
+  - Ensure all tests pass, ask the user if questions arise.
+  - _Requirements: 1.10, 13.8, 14.4_
+
+## Notes
+
+- Tasks marked with `*` are optional test sub-tasks and can be skipped for a faster MVP; core implementation tasks must not be skipped.
+- Each task references the specific requirements it satisfies for traceability.
+- Checkpoints (tasks 19 and 22) guard the transition from core wiring to feature work and from implementation to verification.
+- Per the design document's "Correctness Properties" section, property-based tests are explicitly not appropriate for this feature; testing is example-based (Vitest + Testing Library + MSW).
+- The steering rules file (task 20) is mandatory; all subsequent contributions must respect it.
