@@ -23,7 +23,7 @@ import type {
 export class AdminTradiesRepository {
   async list(params: TradieListParams): Promise<PaginatedResult<TradieListItem>> {
     const res = await apiClient.get(ADMIN_PATHS.tradies.root, { params });
-    return res.data.data;
+    return { data: res.data.data, meta: res.data.meta };
   }
 
   async getById(id: string): Promise<TradieDetail> {

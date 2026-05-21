@@ -264,26 +264,44 @@ export function CategoryDialog({
             <FormField
               control={form.control}
               name="icon"
-              render={({ field: { onChange, name, ref, onBlur } }) => (
-                <FormItem>
-                  <FormLabel>Icon</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      name={name}
-                      ref={ref}
-                      onBlur={onBlur}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        onChange(file);
-                      }}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field: { onChange, value, name, ref, onBlur } }) => {
+                const previewSrc = value instanceof File
+                  ? URL.createObjectURL(value)
+                  : (mode === "edit" && category?.icon) ? category.icon : null;
+
+                return (
+                  <FormItem>
+                    <FormLabel>Icon</FormLabel>
+                    {previewSrc && (
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={previewSrc}
+                          alt={category?.name ?? "Icon preview"}
+                          className="h-16 w-16 rounded-md border object-cover"
+                        />
+                        {mode === "edit" && !(value instanceof File) && (
+                          <span className="text-sm text-muted-foreground">Current icon</span>
+                        )}
+                      </div>
+                    )}
+                    <FormControl>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        name={name}
+                        ref={ref}
+                        onBlur={onBlur}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          onChange(file);
+                        }}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <DialogFooter>

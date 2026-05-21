@@ -22,7 +22,7 @@
 
 import * as React from "react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,12 +95,18 @@ export default function CategoriesPage() {
       {
         key: "icon",
         header: "Icon",
-        cell: (row) => (
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={row.icon ?? undefined} alt={row.name} />
-            <AvatarFallback>{getInitial(row.name)}</AvatarFallback>
-          </Avatar>
-        ),
+        cell: (row) =>
+          row.icon ? (
+            <img
+              src={row.icon}
+              alt={row.name}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+          ) : (
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>{getInitial(row.name)}</AvatarFallback>
+            </Avatar>
+          ),
       },
       {
         key: "sortOrder",
