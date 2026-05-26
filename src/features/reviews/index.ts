@@ -4,6 +4,7 @@
  */
 
 export { default as ReviewsPage } from "./pages/reviews-page";
+export { default as ReviewDetailPage } from "./pages/review-detail-page";
 
 // Repository
 export { adminReviewsRepository } from "./reviews.repository";
@@ -31,5 +32,4 @@ export { useBulkRejectReviewsMutation } from "./hooks/use-bulk-reject-reviews-mu
 
 // Components
 export { ReviewRejectDialog } from "./components/review-reject-dialog";
-export { ReviewDetailDialog } from "./components/review-detail-dialog";
 export { ReviewBulkToolbar } from "./components/review-bulk-toolbar";

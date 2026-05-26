@@ -4,6 +4,7 @@
  */
 
 export { default as TradiesPage } from "./pages/tradies-page";
+export { default as TradieDetailPage } from "./pages/tradie-detail-page";
 
 // Repository
 export { adminTradiesRepository } from "./tradies.repository";
@@ -31,5 +32,4 @@ export { useBulkRejectTradieMutation } from "./hooks/use-bulk-reject-tradies-mut
 
 // Components
 export { TradieRejectDialog } from "./components/tradie-reject-dialog";
-export { TradieDetailDialog } from "./components/tradie-detail-dialog";
 export { TradieBulkToolbar } from "./components/tradie-bulk-toolbar";

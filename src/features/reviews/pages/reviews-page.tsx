@@ -5,6 +5,7 @@
  */
 
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { MoreHorizontal, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,6 @@ import {
   type DataTableColumn,
 } from "@/components/wrappers/data-table";
 import { PageHeader } from "@/components/wrappers/page-header";
-import { ReviewDetailDialog } from "@/features/reviews/components/review-detail-dialog";
 import { ReviewRejectDialog } from "@/features/reviews/components/review-reject-dialog";
 import { ReviewBulkToolbar } from "@/features/reviews/components/review-bulk-toolbar";
 import { useReviewsQuery } from "@/features/reviews/hooks/use-reviews-query";
@@ -49,13 +49,12 @@ const PAGE_SIZE = 10;
 const COMMENT_TRUNCATE_LENGTH = 60;
 
 export default function ReviewsPage() {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [search, setSearch] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
-  const [detailId, setDetailId] = React.useState<string | undefined>(undefined);
-  const [detailOpen, setDetailOpen] = React.useState(false);
   const [rejectId, setRejectId] = React.useState<string | undefined>(undefined);
   const [rejectOpen, setRejectOpen] = React.useState(false);
 
@@ -105,10 +104,12 @@ export default function ReviewsPage() {
     }
   }, [selectedIds.length, reviews]);
 
-  const openDetail = React.useCallback((id: string) => {
-    setDetailId(id);
-    setDetailOpen(true);
-  }, []);
+  const openDetail = React.useCallback(
+    (id: string) => {
+      navigate(`/reviews/${id}`);
+    },
+    [navigate],
+  );
 
   const handleApprove = React.useCallback(
     async (id: string) => {
@@ -339,13 +340,6 @@ export default function ReviewsPage() {
       <ReviewBulkToolbar
         selectedIds={selectedIds}
         onClearSelection={() => setSelectedIds([])}
-      />
-
-      {/* Detail dialog */}
-      <ReviewDetailDialog
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        reviewId={detailId}
       />
 
       {/* Single reject dialog */}

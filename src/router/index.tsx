@@ -65,8 +65,14 @@ const UsersPage = React.lazy(
 const TradiesPage = React.lazy(
   () => import("@/features/tradies/pages/tradies-page"),
 );
+const TradieDetailPage = React.lazy(
+  () => import("@/features/tradies/pages/tradie-detail-page"),
+);
 const ReviewsPage = React.lazy(
   () => import("@/features/reviews/pages/reviews-page"),
+);
+const ReviewDetailPage = React.lazy(
+  () => import("@/features/reviews/pages/review-detail-page"),
 );
 const ReportsPage = React.lazy(
   () => import("@/features/reports/pages/reports-page"),
@@ -124,8 +130,14 @@ export function AppRouter() {
             {features.tradies ? (
               <Route path="/tradies" element={<TradiesPage />} />
             ) : null}
+            {features.tradies ? (
+              <Route path="/tradies/:id" element={<TradieDetailPage />} />
+            ) : null}
             {features.reviews ? (
               <Route path="/reviews" element={<ReviewsPage />} />
+            ) : null}
+            {features.reviews ? (
+              <Route path="/reviews/:id" element={<ReviewDetailPage />} />
             ) : null}
             {features.reports ? (
               <Route path="/reports" element={<ReportsPage />} />

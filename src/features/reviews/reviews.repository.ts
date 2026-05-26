@@ -23,12 +23,16 @@ import type {
 export class AdminReviewsRepository {
   async list(params: ReviewListParams): Promise<PaginatedResult<ReviewListItem>> {
     const res = await apiClient.get(ADMIN_PATHS.reviews.root, { params });
-    return res.data.data;
+    const items = Array.isArray(res.data?.data) ? (res.data.data as RawReviewListItem[]) : [];
+    return {
+      data: items.map(normalizeReviewListItem),
+      meta: res.data?.meta as PaginatedResult<ReviewListItem>["meta"],
+    };
   }
 
   async getById(id: string): Promise<ReviewDetail> {
     const res = await apiClient.get(ADMIN_PATHS.reviews.byId(id));
-    return res.data.data;
+    return normalizeReviewDetail(res.data.data as RawReviewDetail);
   }
 
   async approve(id: string): Promise<void> {
@@ -54,3 +58,38 @@ export class AdminReviewsRepository {
 }
 
 export const adminReviewsRepository = new AdminReviewsRepository();
+
+// --------------------------------------------------------------------------
+// Wire-shape normalization
+// --------------------------------------------------------------------------
+//
+// The backend serializes the Sequelize association under the model name
+// (`TradieProfile`, PascalCase). Our domain types use `tradieProfile`
+// (camelCase). We accept either spelling so the repository stays robust
+// to either backend convention without forcing a backend rename.
+
+type RawReviewListItem = Omit<ReviewListItem, "tradieProfile"> & {
+  tradieProfile?: ReviewListItem["tradieProfile"];
+  TradieProfile?: ReviewListItem["tradieProfile"];
+};
+
+type RawReviewDetail = Omit<ReviewDetail, "tradieProfile"> & {
+  tradieProfile?: ReviewDetail["tradieProfile"];
+  TradieProfile?: ReviewDetail["tradieProfile"];
+};
+
+function normalizeReviewListItem(raw: RawReviewListItem): ReviewListItem {
+  const { TradieProfile, tradieProfile, ...rest } = raw;
+  return {
+    ...rest,
+    tradieProfile: (tradieProfile ?? TradieProfile ?? { id: "", businessName: "" }) as ReviewListItem["tradieProfile"],
+  };
+}
+
+function normalizeReviewDetail(raw: RawReviewDetail): ReviewDetail {
+  const { TradieProfile, tradieProfile, ...rest } = raw;
+  return {
+    ...rest,
+    tradieProfile: (tradieProfile ?? TradieProfile ?? { id: "", businessName: "" }) as ReviewDetail["tradieProfile"],
+  };
+}
