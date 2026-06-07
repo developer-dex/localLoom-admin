@@ -14,6 +14,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import {
 } from "@/components/wrappers/data-table";
 import { PageHeader } from "@/components/wrappers/page-header";
 import { TradieRejectDialog } from "@/features/tradies/components/tradie-reject-dialog";
+import { TradieDeleteDialog } from "@/features/tradies/components/tradie-delete-dialog";
 import { TradieBulkToolbar } from "@/features/tradies/components/tradie-bulk-toolbar";
 import { useTradiesQuery } from "@/features/tradies/hooks/use-tradies-query";
 import { useApproveTradieMutation } from "@/features/tradies/hooks/use-approve-tradie-mutation";
@@ -56,6 +58,9 @@ export default function TradiesPage() {
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [rejectId, setRejectId] = React.useState<string | undefined>(undefined);
   const [rejectOpen, setRejectOpen] = React.useState(false);
+  const [deleteUserId, setDeleteUserId] = React.useState<string | undefined>(undefined);
+  const [deleteUserName, setDeleteUserName] = React.useState<string | undefined>(undefined);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
 
   const approveMutation = useApproveTradieMutation();
 
@@ -124,6 +129,12 @@ export default function TradiesPage() {
   const openReject = React.useCallback((id: string) => {
     setRejectId(id);
     setRejectOpen(true);
+  }, []);
+
+  const openDelete = React.useCallback((userId: string, userName?: string) => {
+    setDeleteUserId(userId);
+    setDeleteUserName(userName);
+    setDeleteOpen(true);
   }, []);
 
   const columns: DataTableColumn<TradieListItem>[] = React.useMemo(
@@ -240,6 +251,13 @@ export default function TradiesPage() {
                   Reject
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => openDelete(row.user.id, row.user.name)}
+              >
+                Delete user
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ),
@@ -253,6 +271,7 @@ export default function TradiesPage() {
       openDetail,
       handleApprove,
       openReject,
+      openDelete,
     ],
   );
 
@@ -343,6 +362,16 @@ export default function TradiesPage() {
           onOpenChange={setRejectOpen}
           mode="single"
           tradieId={rejectId}
+        />
+      )}
+
+      {/* Delete user dialog */}
+      {deleteUserId && (
+        <TradieDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          userId={deleteUserId}
+          userName={deleteUserName}
         />
       )}
     </div>

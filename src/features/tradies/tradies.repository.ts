@@ -20,6 +20,10 @@ import type {
   TradieListParams,
 } from "./tradies.types";
 
+export interface DeleteUserResult {
+  id: string;
+}
+
 export class AdminTradiesRepository {
   async list(params: TradieListParams): Promise<PaginatedResult<TradieListItem>> {
     const res = await apiClient.get(ADMIN_PATHS.tradies.root, { params });
@@ -49,6 +53,11 @@ export class AdminTradiesRepository {
       ids,
       rejectionReason,
     });
+    return res.data.data;
+  }
+
+  async deleteUser(userId: string): Promise<DeleteUserResult> {
+    const res = await apiClient.delete(ADMIN_PATHS.users.byId(userId));
     return res.data.data;
   }
 }
