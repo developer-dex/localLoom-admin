@@ -77,6 +77,9 @@ const ReviewDetailPage = React.lazy(
 const ReportsPage = React.lazy(
   () => import("@/features/reports/pages/reports-page"),
 );
+const HelpDeskPage = React.lazy(
+  () => import("@/features/help-desk/pages/help-desk-page"),
+);
 const NotFoundPage = React.lazy(
   () => import("@/features/not-found/pages/not-found-page"),
 );
@@ -141,6 +144,9 @@ export function AppRouter() {
             ) : null}
             {features.reports ? (
               <Route path="/reports" element={<ReportsPage />} />
+            ) : null}
+            {features.helpDesk ? (
+              <Route path="/help-desk" element={<HelpDeskPage />} />
             ) : null}
 
             {/*

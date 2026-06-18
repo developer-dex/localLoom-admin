@@ -169,6 +169,7 @@ export default function TradieDetailPage() {
                 label="ABN Verified"
                 value={tradie.abnVerified ? "Yes" : "No"}
               />
+              <Field label="Business Number" value={tradie.businessNumber} />
               <Field label="Location" value={tradie.businessLocation} />
               <Field
                 label="Website"

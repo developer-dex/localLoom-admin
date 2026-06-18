@@ -17,6 +17,7 @@ export const features = {
   tradies: true,
   reviews: true,
   reports: false,
+  helpDesk: true,
 } as const;
 
 export type FeatureKey = keyof typeof features;

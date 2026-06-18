@@ -23,6 +23,7 @@
 import {
   Flag,
   Hammer,
+  HelpCircle,
   LayoutDashboard,
   MapPin,
   Star,
@@ -50,6 +51,7 @@ const navItems: NavItem[] = [
   { to: "/tradies", label: "Tradies", icon: Hammer, enabled: features.tradies },
   { to: "/reviews", label: "Reviews", icon: Star, enabled: features.reviews },
   { to: "/reports", label: "Reports", icon: Flag, enabled: features.reports },
+  { to: "/help-desk", label: "Help Desk", icon: HelpCircle, enabled: features.helpDesk },
 ];
 
 export interface AppSidebarProps {

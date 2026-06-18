@@ -58,6 +58,11 @@ export const ADMIN_PATHS = {
     stats: "/dashboard/stats",
     recentActivity: "/dashboard/recent-activity",
   },
+  helpDesk: {
+    root: "/help-desk",
+    byId: (id: string) => `/help-desk/${id}`,
+    resolve: (id: string) => `/help-desk/${id}/resolve`,
+  },
   suburbs: {
     root: "/locations/suburbs",
     byId: (id: string) => `/locations/suburbs/${id}`,

@@ -21,6 +21,7 @@ export interface TradieListItem {
 }
 
 export interface TradieDetail extends TradieListItem {
+  businessNumber: string | null;
   businessLocation: string | null;
   serviceDescription: string | null;
   website: string | null;
